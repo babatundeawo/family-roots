@@ -1,15 +1,27 @@
 name: Deploy
+
 on:
-  push: { branches: [main] }
-  pull_request: { branches: [main] }
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-concurrency: { group: deploy-${{ github.ref }}, cancel-in-progress: true }
-permissions: { contents: read, pull-requests: write, checks: write }
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Write Firebase config from secrets
         env:
           FB_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
@@ -22,6 +34,7 @@ jobs:
             apiKey: "$FB_API_KEY", authDomain: "$FB_AUTH_DOMAIN", projectId: "$FB_PROJECT_ID", appId: "$FB_APP_ID"
           };
           CFG
+
       - name: Generate app icons if missing
         run: |
           if [ ! -f public/icons/icon-512.png ]; then
@@ -36,18 +49,42 @@ jobs:
               im.save(f"public/icons/icon-{s}.png")
           PY
           fi
+
       - name: Check required files exist
         run: test -f public/index.html && test -f public/app.js && test -f firestore.rules
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+
+      - name: Check that Firebase secrets are set
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: |
+          if [ -z "$SA" ] || [ -z "$PID" ] || [ -z "$KEY" ]; then
+            echo "::error::Firebase secrets are missing. Follow docs/FIREBASE_LOGIN_SETUP.md step 5, then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Deploy live site
+        if: github.event_name != 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
-          channelId: ${{ github.event_name == 'push' && 'live' || '' }}
+          channelId: live
+
+      - name: Deploy preview (pull requests)
+        if: github.event_name == 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+
       - name: Lighthouse report (informational)
+        if: github.event_name != 'pull_request'
         continue-on-error: true
         uses: treosh/lighthouse-ci-action@v12
         with:
-          configPath: ''
           urls: https://${{ secrets.FIREBASE_PROJECT_ID }}.web.app/
           uploadArtifacts: true
