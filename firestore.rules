@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function treeDoc(id) { return get(/databases/$(database)/documents/trees/$(id)); }
+    function roleIn(id) { return treeDoc(id).data.members[request.auth.uid]; }
+
+    match /trees/{treeId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'members', 'memberIds', 'createdAt'])
+        && request.resource.data.members == { [request.auth.uid]: 'owner' }
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 80;
+
+      // Owners can rename / manage members
+      allow update: if signedIn() && resource.data.members[request.auth.uid] == 'owner';
+
+      // Joining with an invite code: only add yourself, with the invited role
+      allow update: if signedIn()
+        && !(request.auth.uid in resource.data.memberIds)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds', 'joinCode'])
+        && request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid])
+        && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
+        && request.resource.data.memberIds.hasAll(resource.data.memberIds)
+        && request.auth.uid in request.resource.data.memberIds
+        && exists(/databases/$(database)/documents/invites/$(request.resource.data.joinCode))
+        && get(/databases/$(database)/documents/invites/$(request.resource.data.joinCode)).data.treeId == treeId
+        && request.resource.data.members[request.auth.uid]
+           == get(/databases/$(database)/documents/invites/$(request.resource.data.joinCode)).data.role;
+
+      allow delete: if signedIn() && resource.data.members[request.auth.uid] == 'owner';
+
+      match /people/{personId} {
+        allow read: if signedIn() && request.auth.uid in treeDoc(treeId).data.memberIds;
+        allow create, update: if signedIn() && roleIn(treeId) in ['owner', 'editor']
+          && request.resource.data.name is string && request.resource.data.name.size() <= 120;
+        allow delete: if signedIn() && roleIn(treeId) in ['owner', 'editor'];
+      }
+    }
+
+    // Invite links: anyone signed in who knows the code can read it (no listing)
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn()
+        && roleIn(request.resource.data.treeId) == 'owner'
+        && request.resource.data.role in ['editor', 'viewer'];
+      allow delete: if signedIn() && roleIn(resource.data.treeId) == 'owner';
+    }
+  }
+}

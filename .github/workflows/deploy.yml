@@ -1,0 +1,53 @@
+name: Deploy
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+  workflow_dispatch:
+concurrency: { group: deploy-${{ github.ref }}, cancel-in-progress: true }
+permissions: { contents: read, pull-requests: write, checks: write }
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write Firebase config from secrets
+        env:
+          FB_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FB_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FB_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FB_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+        run: |
+          cat > public/firebase-config.js <<CFG
+          export const firebaseConfig = {
+            apiKey: "$FB_API_KEY", authDomain: "$FB_AUTH_DOMAIN", projectId: "$FB_PROJECT_ID", appId: "$FB_APP_ID"
+          };
+          CFG
+      - name: Generate app icons if missing
+        run: |
+          if [ ! -f public/icons/icon-512.png ]; then
+            python3 -m pip install --quiet pillow
+            python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          for s in (192, 512):
+              im = Image.new("RGB", (s, s), "#6B4226"); d = ImageDraw.Draw(im); k = s / 108
+              for cx, cy, r in ((54, 34, 16), (36, 48, 12), (72, 48, 12)):
+                  d.ellipse([(cx-r)*k, (cy-r)*k, (cx+r)*k, (cy+r)*k], fill="#F4E9D8")
+              d.rectangle([50*k, 50*k, 58*k, 84*k], fill="#F4E9D8")
+              im.save(f"public/icons/icon-{s}.png")
+          PY
+          fi
+      - name: Check required files exist
+        run: test -f public/index.html && test -f public/app.js && test -f firestore.rules
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          channelId: ${{ github.event_name == 'push' && 'live' || '' }}
+      - name: Lighthouse report (informational)
+        continue-on-error: true
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ''
+          urls: https://${{ secrets.FIREBASE_PROJECT_ID }}.web.app/
+          uploadArtifacts: true
