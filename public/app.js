@@ -143,7 +143,7 @@ root.addEventListener('click', async e => {
   } else if (t.id === 'google') { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (er) { msg = er.message; render(); } }
   else if (t.id === 'forgot') { e.preventDefault(); const em = $('#em').value; if (em) { await sendPasswordResetEmail(auth, em); msg = 'Password reset email sent.'; render(); } else { msg = 'Enter your email first.'; render(); } }
   else if (t.id === 'out') signOut(auth);
-  else if (t.id === 'mk') { const n = $('#tn').value.trim(); if (n) { const r = await addDoc(collection(db, 'trees'), { name: n, members: { [user.uid]: 'owner' }, memberIds: [user.uid], createdAt: serverTimestamp() }); } }
+  else if (t.id === 'mk') { const n = $('#tn').value.trim(); if (n) { try { msg = ''; await addDoc(collection(db, 'trees'), { name: n, members: { [user.uid]: 'owner' }, memberIds: [user.uid], createdAt: serverTimestamp() }); } catch (er) { msg = 'Could not create tree: ' + er.message; render(); } } }
   else if (t.id === 'join') { const c = $('#jc').value.trim().split('join=').pop(); if (c) joinWith(c); }
   else if (q('[data-tree]')) openTree(trees.find(x => x.id === q('[data-tree]').dataset.tree));
   else if (t.id === 'back') { cur = null; unsubPeople?.(); people = []; msg = ''; render(); }
