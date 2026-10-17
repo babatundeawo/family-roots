@@ -11,8 +11,10 @@ service cloud.firestore {
 
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['name', 'members', 'memberIds', 'createdAt'])
-        && request.resource.data.members == { [request.auth.uid]: 'owner' }
-        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.members.keys().hasOnly([request.auth.uid])
+        && request.resource.data.members[request.auth.uid] == 'owner'
+        && request.resource.data.memberIds.hasOnly([request.auth.uid])
+        && request.resource.data.memberIds.size() == 1
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 80;
 

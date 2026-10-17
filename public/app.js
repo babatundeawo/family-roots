@@ -12,6 +12,13 @@ const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabMana
 
 const $ = s => document.querySelector(s), root = $('#app'), dlg = $('#dlg');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+function toast(t) {
+  let el = document.getElementById('toast');
+  if (!el) { el = document.createElement('div'); el.id = 'toast'; el.setAttribute('role', 'status'); document.body.append(el); }
+  el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+let loading = true;
 let user = null, trees = [], cur = null, people = [], tab = 'tree', msg = '', unsubTrees, unsubPeople;
 let pendingJoin = new URLSearchParams(location.hash.slice(1)).get('join');
 
@@ -24,12 +31,14 @@ const canEdit = () => ['owner', 'editor'].includes(role());
 
 onAuthStateChanged(auth, async u => {
   user = u; unsubTrees?.(); unsubPeople?.(); cur = null;
+  loading = !!u;
   if (!u) return render();
   unsubTrees = onSnapshot(query(collection(db, 'trees'), where('memberIds', 'array-contains', u.uid)), s => {
+    loading = false;
     trees = s.docs.map(d => ({ id: d.id, ...d.data() }));
     if (cur) { const t = trees.find(t => t.id === cur.id); if (t) cur = t; else { cur = null; unsubPeople?.(); } }
     render();
-  }, e => { msg = e.message; render(); });
+  }, e => { loading = false; msg = e.message; render(); });
   if (pendingJoin) { await joinWith(pendingJoin); pendingJoin = null; history.replaceState(null, '', location.pathname); }
 });
 
@@ -40,7 +49,7 @@ async function joinWith(code) {
     if (!inv.exists()) throw new Error('Invite code not found.');
     const { treeId, role } = inv.data();
     await updateDoc(doc(db, 'trees', treeId), { [`members.${user.uid}`]: role, memberIds: arrayUnion(user.uid), joinCode: code });
-    msg = 'Joined!';
+    msg = ''; toast('You joined the tree');
   } catch (e) { msg = 'Could not join: ' + e.message; }
   render();
 }
@@ -65,29 +74,42 @@ function flatten() {
 function render() {
   if (!user) return root.innerHTML = `
     <header><h1>🌳 Family Roots</h1></header>
-    <main id="main"><div class="card hero"><h2>Keep your family story alive</h2><p class="mut">Record your family story and share it with relatives.</p>
-    <label>Email</label><input id="em" type="email" autocomplete="email">
-    <label>Password</label><input id="pw" type="password" autocomplete="current-password">
-    <div class="err">${esc(msg)}</div>
-    <div class="row"><button id="login">Sign in</button><button class="ghost" id="signup">Create account</button></div><br>
-    <button class="ghost" style="width:100%" id="google">Continue with Google</button><br><br>
-    <a href="#" id="forgot" class="mut">Forgot password?</a></div></main>`;
+    <main id="main" class="landing">
+      <section class="intro">
+        <p class="eyebrow">Private family archive</p>
+        <h2 class="display">Every family has a story worth keeping.</h2>
+        <p class="lead">Build your tree, write down the stories and traditions behind each person, and invite relatives to add what they remember.</p>
+        <div class="bento">
+          <div class="card"><b>A living tree</b><p class="mut">Add generations and see your family take shape.</p></div>
+          <div class="card"><b>Stories and places</b><p class="mut">Keep origins, traditions and memories with each person.</p></div>
+          <div class="card"><b>Shared, not public</b><p class="mut">Invite relatives as editors or viewers.</p></div>
+        </div>
+      </section>
+      <div class="card hero auth"><h2>Sign in to begin</h2>
+        <label for="em">Email</label><input id="em" type="email" autocomplete="email">
+        <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">
+        <div class="err" role="alert">${esc(msg)}</div>
+        <div class="row"><button id="login">Sign in</button><button class="ghost" id="signup">Create account</button></div><br>
+        <button class="ghost" style="width:100%" id="google">Continue with Google</button><br><br>
+        <a href="#" id="forgot" class="mut">Forgot password?</a></div>
+    </main>`;
   if (!cur) return root.innerHTML = `
     <header><h1>🌳 Family Roots</h1><button class="sm ghost" id="out">Sign out</button></header>
     <main id="main">${msg ? `<p class="err">${esc(msg)}</p>` : ''}
     <h3>Your family trees</h3>
-    ${trees.map(t => `<div class="card" data-tree="${t.id}" style="cursor:pointer"><b>${esc(t.name)}</b><br><span class="mut">${t.members[user.uid]} · ${t.memberIds.length} member(s)</span></div>`).join('') || '<p class="mut">No trees yet. Create one or join with an invite code.</p>'}
+    ${loading ? '<div class="card skel"></div><div class="card skel"></div>' : trees.map(t => `<div class="card person" data-tree="${t.id}" style="cursor:pointer"><span class="avatar">${esc(initials(t.name))}</span><div><b>${esc(t.name)}</b><br><span class="mut">${t.members[user.uid]} · ${t.memberIds.length} member(s)</span></div></div>`).join('') || '<p class="mut">No trees yet. Create one below, or join with an invite code.</p>'}
     <div class="card"><label>New tree name</label><input id="tn" placeholder="e.g. The Okafor Family"><button id="mk">Create tree</button></div>
     <div class="card"><label>Have an invite code or link?</label><input id="jc" placeholder="Paste code"><button class="ghost" id="join">Join tree</button></div>
     <p><a href="#" id="delacct" class="mut">Delete my account</a></p></main>`;
   const list = tab === 'tree'
-    ? flatten().map(([p, d]) => `<div class="card" data-p="${p.id}" style="margin-left:${d * 18}px;cursor:pointer"><b>${esc(p.name)}</b>${yrs(p)}${p.birthPlace ? `<div class="mut">${esc(p.birthPlace)}</div>` : ''}${p.story ? `<div>${esc(p.story.slice(0, 140))}${p.story.length > 140 ? '…' : ''}</div>` : ''}</div>`).join('')
+    ? flatten().map(([p, d]) => `<div class="card person${d ? ' child' : ''}" data-p="${p.id}" style="margin-left:${d * 20}px;cursor:pointer"><span class="avatar">${esc(initials(p.name))}</span><div><b>${esc(p.name)}</b>${yrs(p) ? `<span class="chip">${yrs(p).trim().slice(1, -1)}</span>` : ''}${p.birthPlace ? `<div class="mut">${esc(p.birthPlace)}</div>` : ''}${p.story ? `<div class="snip">${esc(p.story.slice(0, 140))}${p.story.length > 140 ? '…' : ''}</div>` : ''}</div></div>`).join('')
     : people.flatMap(p => [p.birthYear && [p.birthYear, `${p.name} born${p.birthPlace ? ' in ' + p.birthPlace : ''}`, p.id], p.deathYear && [p.deathYear, `${p.name} passed away`, p.id]].filter(Boolean))
         .sort((a, b) => a[0] - b[0]).map(e => `<div class="ev" data-p="${e[2]}" style="cursor:pointer"><b>${e[0]}</b><span>${esc(e[1])}</span></div>`).join('');
+  const gens = people.length ? Math.max(...flatten().map(x => x[1])) + 1 : 0;
   root.innerHTML = `
     <header><button class="sm ghost" id="back">←</button><h1>${esc(cur.name)}</h1>
       <button class="sm ghost" id="share">Share</button>${role() === 'owner' ? '<button class="sm" id="invite">Invite</button>' : ''}</header>
-    <main id="main">${list || `<p class="mut">${canEdit() ? 'Tap + to add your oldest known ancestor.' : 'Nothing here yet.'}</p>`}
+    <main id="main">${people.length ? `<div class="stats"><span><b>${people.length}</b> people</span><span><b>${gens}</b> generations</span></div>` : ''}<div class="${tab === 'time' ? 'timeline' : ''}">${list || `<p class="mut">${canEdit() ? 'Tap + to add your oldest known ancestor.' : 'Nothing here yet.'}</p>`}</div>
     ${role() === 'owner' ? '<p><a href="#" id="deltree" class="mut">Delete this tree</a></p>' : ''}</main>
     ${canEdit() ? '<button class="fab" id="add">+</button>' : ''}
     <nav class="tabs"><button data-tab="tree" class="${tab === 'tree' ? 'on' : ''}">Tree</button><button data-tab="time" class="${tab === 'time' ? 'on' : ''}">Timeline</button></nav>`;
@@ -113,7 +135,7 @@ function personDialog(p) {
     const num = v => /^\d{1,4}$/.test(v.trim()) ? +v : null;
     const data = { name, birthYear: num($('#f-b').value), deathYear: num($('#f-d').value), birthPlace: $('#f-place').value.trim(),
       story: $('#f-story').value.trim(), parentId: $('#f-par').value || null };
-    dlg.close();
+    dlg.close(); toast('Saved');
     isNew ? addDoc(collection(db, 'trees', cur.id, 'people'), data) : setDoc(doc(db, 'trees', cur.id, 'people', p.id), data);
   };
   if (!isNew) $('#f-del').onclick = () => { if (confirm('Delete this person?')) { dlg.close(); deleteDoc(doc(db, 'trees', cur.id, 'people', p.id)); } };
@@ -131,7 +153,7 @@ function inviteDialog() {
     const link = location.origin + location.pathname + '#join=' + code;
     $('#i-out').innerHTML = `<input readonly value="${link}" id="i-link"><button class="ghost" id="i-cp">Share / copy</button>`;
     $('#i-link').onclick = e => e.target.select();
-    $('#i-cp').onclick = () => navigator.share ? navigator.share({ title: 'Join our family tree', url: link }).catch(() => {}) : navigator.clipboard.writeText(link);
+    $('#i-cp').onclick = () => navigator.share ? navigator.share({ title: 'Join our family tree', url: link }).catch(() => {}) : navigator.clipboard.writeText(link).then(() => toast('Link copied'));
   };
 }
 
@@ -153,7 +175,7 @@ root.addEventListener('click', async e => {
   else if (t.id === 'invite') inviteDialog();
   else if (t.id === 'share') {
     const text = `${cur.name}\n\n` + flatten().map(([p, d]) => '  '.repeat(d) + '• ' + p.name + yrs(p) + (p.birthPlace ? ', ' + p.birthPlace : '')).join('\n');
-    navigator.share ? navigator.share({ title: cur.name, text }).catch(() => {}) : navigator.clipboard.writeText(text);
+    navigator.share ? navigator.share({ title: cur.name, text }).catch(() => {}) : navigator.clipboard.writeText(text).then(() => toast('Tree copied to clipboard'));
   }
   else if (t.id === 'deltree') { e.preventDefault(); if (confirm('Delete this tree and all its people for everyone?')) {
     const id = cur.id; for (const d of (await getDocs(collection(db, 'trees', id, 'people'))).docs) await deleteDoc(d.ref);

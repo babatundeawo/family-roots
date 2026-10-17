@@ -1,4 +1,4 @@
-const CACHE = 'family-roots-v2';
+const CACHE = 'family-roots-v3';
 const SHELL = ['./', './index.html', './app.js', './styles.css', './theme.js', './firebase-config.js', './manifest.json', './icons/icon-192.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
