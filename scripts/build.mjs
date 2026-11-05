@@ -215,7 +215,7 @@ for (const f of ["favicon.svg", "favicon.ico", "icons/apple-touch-icon.png"]) if
 for (const item of PRECACHE) if (!(await exists(path.join(DIST, item === "./" ? "index.html" : item)))) problems.push(`sw.js: "${item}" is in the offline file list but does not exist.`);
 
 // The Firebase settings must have made it into the bundle (and a mock build must not carry real ones).
-const bundle = await fs.readFile(path.join(DIST, appJs), "utf8");
+const bundle = (await Promise.all(jsOut.map((o) => fs.readFile(path.join(DIST, o), "utf8")))).join("\n");
 if (!MOCK && !bundle.includes(config.projectId)) problems.push("The Firebase settings were not found in the built app.");
 if (MOCK && bundle.includes("firebaseio.com")) warnings.push("The mock build still contains the Firebase client.");
 
