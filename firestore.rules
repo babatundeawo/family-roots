@@ -1,10 +1,33 @@
 rules_version = '2';
+// Family Roots security rules.
+// Who can do what:
+//   - A tree can be read only by its members.
+//   - Owners can rename, manage and delete their tree and create invite links.
+//   - Editors can add, change and delete people. Viewers can only read.
+//   - Someone with a valid invite code can add themselves to the tree, with the role on the invite and no other.
+// Every write is checked for the right fields and sizes, so a bad or hand-made request cannot store junk.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
     function treeDoc(id) { return get(/databases/$(database)/documents/trees/$(id)); }
     function roleIn(id) { return treeDoc(id).data.members[request.auth.uid]; }
+    function isMember(id) { return signedIn() && request.auth.uid in treeDoc(id).data.memberIds; }
+    function canEditPeople(id) { return signedIn() && roleIn(id) in ['owner', 'editor']; }
+
+    function validName(v, max) { return v is string && v.size() >= 1 && v.size() <= max; }
+    function validYearOrNull(v) { return v == null || (v is int && v >= 0 && v <= 2200); }
+
+    function validPerson(d) {
+      return d.keys().hasOnly(['name', 'birthYear', 'deathYear', 'birthPlace', 'story', 'parentId'])
+        && d.keys().hasAll(['name'])
+        && validName(d.name, 120)
+        && ('birthYear' in d ? validYearOrNull(d.birthYear) : true)
+        && ('deathYear' in d ? validYearOrNull(d.deathYear) : true)
+        && ('birthPlace' in d ? (d.birthPlace is string && d.birthPlace.size() <= 120) : true)
+        && ('story' in d ? (d.story is string && d.story.size() <= 5000) : true)
+        && ('parentId' in d ? (d.parentId == null || (d.parentId is string && d.parentId.size() <= 40)) : true);
+    }
 
     match /trees/{treeId} {
       allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
@@ -13,15 +36,17 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['name', 'members', 'memberIds', 'createdAt'])
         && request.resource.data.members.keys().hasOnly([request.auth.uid])
         && request.resource.data.members[request.auth.uid] == 'owner'
-        && request.resource.data.memberIds.hasOnly([request.auth.uid])
-        && request.resource.data.memberIds.size() == 1
-        && request.resource.data.name is string
-        && request.resource.data.name.size() <= 80;
+        && request.resource.data.memberIds == [request.auth.uid]
+        && validName(request.resource.data.name, 80)
+        && request.resource.data.createdAt == request.time;
 
-      // Owners can rename / manage members
-      allow update: if signedIn() && resource.data.members[request.auth.uid] == 'owner';
+      // Owners can rename the tree. They cannot remove their own ownership or change who is a member here.
+      allow update: if signedIn()
+        && resource.data.members[request.auth.uid] == 'owner'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && validName(request.resource.data.name, 80);
 
-      // Joining with an invite code: only add yourself, with the invited role
+      // Joining with an invite code: you can only add yourself, with the role on the invite.
       allow update: if signedIn()
         && !(request.auth.uid in resource.data.memberIds)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds', 'joinCode'])
@@ -29,6 +54,7 @@ service cloud.firestore {
         && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
         && request.resource.data.memberIds.hasAll(resource.data.memberIds)
         && request.auth.uid in request.resource.data.memberIds
+        && request.resource.data.joinCode is string
         && exists(/databases/$(database)/documents/invites/$(request.resource.data.joinCode))
         && get(/databases/$(database)/documents/invites/$(request.resource.data.joinCode)).data.treeId == treeId
         && request.resource.data.members[request.auth.uid]
@@ -37,19 +63,24 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.members[request.auth.uid] == 'owner';
 
       match /people/{personId} {
-        allow read: if signedIn() && request.auth.uid in treeDoc(treeId).data.memberIds;
-        allow create, update: if signedIn() && roleIn(treeId) in ['owner', 'editor']
-          && request.resource.data.name is string && request.resource.data.name.size() <= 120;
-        allow delete: if signedIn() && roleIn(treeId) in ['owner', 'editor'];
+        allow read: if isMember(treeId);
+        allow create: if canEditPeople(treeId) && validPerson(request.resource.data);
+        allow update: if canEditPeople(treeId) && validPerson(request.resource.data);
+        allow delete: if canEditPeople(treeId);
       }
     }
 
-    // Invite links: anyone signed in who knows the code can read it (no listing)
+    // Invite links: anyone signed in who knows the code can read that one invite. Codes cannot be listed.
     match /invites/{code} {
       allow get: if signedIn();
+      allow list: if false;
       allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['treeId', 'role', 'createdBy'])
+        && request.resource.data.treeId is string
+        && request.resource.data.createdBy == request.auth.uid
         && roleIn(request.resource.data.treeId) == 'owner'
         && request.resource.data.role in ['editor', 'viewer'];
+      allow update: if false;
       allow delete: if signedIn() && roleIn(resource.data.treeId) == 'owner';
     }
   }

@@ -1,0 +1,46 @@
+name: Checks
+
+# Runs on every pull request: builds the site, checks every link, icon and the offline file list,
+# and tests the database security rules against the Firestore emulator. Nothing is published.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # A test copy on pretend data, so this works even without secrets (for example Dependabot pull requests).
+      - run: npm run build
+        env:
+          MOCK: "1"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-test-build
+          path: dist
+          retention-days: 7
+
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run test:rules

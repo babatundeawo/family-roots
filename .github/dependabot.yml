@@ -3,3 +3,9 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      firebase: { patterns: ["firebase"] }
+      build-tools: { patterns: ["esbuild", "@fontsource*"] }
