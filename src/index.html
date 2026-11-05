@@ -1,0 +1,106 @@
+<main id="main">
+<div id="landing">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow">Private family archive</span>
+        <h1>Every family has a story worth keeping.</h1>
+        <p class="lead">Build your tree, write down the stories and traditions behind each person, and invite relatives to add what they remember.</p>
+
+        <div class="card auth" id="auth">
+          <div id="join-note" class="banner" hidden><p><strong>You have been invited to a family tree.</strong> Sign in or create an account and you will join it automatically.</p></div>
+          <h2 id="auth-title">Sign in to begin</h2>
+          <div class="seg" role="tablist" aria-label="Sign in or create an account">
+            <button type="button" role="tab" id="tab-in" aria-selected="true" aria-controls="auth-form">Sign in</button>
+            <button type="button" role="tab" id="tab-up" aria-selected="false" aria-controls="auth-form">Create account</button>
+          </div>
+          <form id="auth-form" novalidate>
+            <label for="em">Email</label>
+            <input id="em" name="email" type="email" autocomplete="email" inputmode="email" required>
+            <label for="pw">Password</label>
+            <input id="pw" name="password" type="password" autocomplete="current-password" minlength="6" required aria-describedby="pw-hint">
+            <p class="hint" id="pw-hint" hidden>At least 6 characters.</p>
+            <div class="field-error" id="auth-error" role="alert"></div>
+            <div class="actions"><button class="btn block" type="submit" id="auth-submit">Sign in</button></div>
+          </form>
+          <div class="or"><span>or</span></div>
+          <button class="btn ghost block" type="button" id="google">Continue with Google</button>
+          <p><button class="link-btn" type="button" id="forgot">Forgot your password?</button></p>
+        </div>
+      </div>
+
+      <svg class="tree-art" viewBox="0 0 400 420" role="img" aria-label="A drawing of a tree whose branches end in people.">
+        <path pathLength="1" d="M200 400V250"/>
+        <path pathLength="1" d="M200 300C200 260 130 260 100 210"/>
+        <path pathLength="1" d="M200 270C200 230 270 230 300 180"/>
+        <path pathLength="1" class="branch-b" d="M100 210C85 175 60 160 55 120"/>
+        <path pathLength="1" class="branch-b" d="M100 210C120 170 150 160 160 110"/>
+        <path pathLength="1" class="branch-b" d="M300 180C315 140 340 125 345 85"/>
+        <path pathLength="1" class="branch-b" d="M300 180C280 140 250 130 240 80"/>
+        <path pathLength="1" class="branch-c" d="M55 120C45 100 30 95 25 70"/>
+        <path pathLength="1" class="branch-c" d="M160 110C170 90 190 85 195 55"/>
+        <circle class="root" cx="200" cy="400" r="12"/>
+        <circle cx="100" cy="210" r="14"/><circle cx="300" cy="180" r="14"/>
+        <circle cx="55" cy="120" r="12"/><circle cx="160" cy="110" r="12"/><circle cx="345" cy="85" r="12"/><circle cx="240" cy="80" r="12"/>
+        <circle class="leaf" cx="25" cy="70" r="10"/><circle class="leaf" cx="195" cy="55" r="10"/>
+      </svg>
+    </div>
+  </section>
+
+  <section class="section" id="features" aria-labelledby="f-h">
+    <div class="wrap">
+      <div class="section-head"><h2 id="f-h">Keep the people and the stories together</h2><p>A family tree is more than names and dates. Each person has room for where they were from and what the family remembers.</p></div>
+      <div class="bento">
+        <div class="card wide"><h3>A living tree</h3><p>Add each person under their parent and watch the generations take shape. Search finds anyone by name or place.</p></div>
+        <div class="card"><h3>Stories and places</h3><p>Write down origins, traditions and memories next to the person they belong to.</p></div>
+        <div class="card"><h3>A timeline</h3><p>See births and passings in order, so the years tell their own story.</p></div>
+        <div class="card"><h3>Shared, not public</h3><p>Only people you invite can see your tree. Give each one the right role: editor or viewer.</p></div>
+        <div class="card"><h3>Print or back up</h3><p>Print the tree as a clean outline, or download a backup file of everything you have written.</p></div>
+        <div class="card"><h3>Works on your phone</h3><p>Install it to your home screen. Trees you have opened stay readable when the signal drops.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="how" aria-labelledby="h-h">
+    <div class="wrap">
+      <div class="section-head"><h2 id="h-h">Start in three steps</h2></div>
+      <ol class="steps">
+        <li><h3>Create your tree</h3><p>Sign in, give the tree a name, and add the oldest ancestor you know.</p></li>
+        <li><h3>Add the family</h3><p>Add children under each parent, with the years, the place and the story.</p></li>
+        <li><h3>Invite relatives</h3><p>Send a link. They sign in and join as an editor or a viewer, as you choose.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" id="privacy" aria-labelledby="p-h">
+    <div class="wrap">
+      <div class="section-head"><h2 id="p-h">Your family's information stays yours</h2></div>
+      <details class="privacy">
+        <summary>How your tree is protected</summary>
+        <ul>
+          <li>Trees can be read only by the people who belong to them. Database rules enforce this on the server.</li>
+          <li>Only owners can invite people, rename the tree or delete it. Viewers cannot change anything.</li>
+          <li>An invite link works only for someone who is signed in. You choose the role the link gives.</li>
+          <li>There are no ads and no trackers. This app does not load scripts from advertising or analytics companies.</li>
+        </ul>
+      </details>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Family Roots &middot; built by Babatunde Awoyemi.</p>
+      <div class="footer-tools"><button class="btn ghost sm" type="button" id="install" hidden>Install the app</button></div>
+    </div>
+  </footer>
+</div>
+
+<div id="app" class="wrap" aria-live="polite"></div>
+<noscript><div class="wrap"><div class="banner err"><p>Family Roots needs JavaScript to sign you in and show your tree. Please turn it on and reload.</p></div></div></noscript>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlg-title"></dialog>
+<dialog id="confirm" aria-labelledby="cf-title"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="overlays"></div>
+<script type="module" src="{{js}}"></script>

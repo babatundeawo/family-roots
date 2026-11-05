@@ -1,0 +1,20 @@
+{
+  "_help": "Edit the light colours here. Dark colours are worked out automatically. The build warns if any text and background pair is below the 4.5:1 contrast ratio. To set a dark colour by hand, add it under \"dark\".",
+  "light": {
+    "bg": "#FAF5EC",
+    "surface": "#FFFDF8",
+    "surface-2": "#F2E9DA",
+    "ink": "#2B2018",
+    "ink-soft": "#6B5847",
+    "line": "#E4D6BF",
+    "primary": "#6B4226",
+    "primary-ink": "#FFFFFF",
+    "accent": "#3F6B3A",
+    "gold": "#865A0C",
+    "success": "#2F6B3A",
+    "warning": "#8A5A00",
+    "error": "#B3261E",
+    "info": "#1F5F99"
+  },
+  "dark": {}
+}
