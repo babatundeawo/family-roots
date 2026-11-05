@@ -7,7 +7,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test:rules": "npx --yes firebase-tools@15 emulators:exec --only firestore --project demo-family-roots \"node --test tests/\""
+    "test:rules": "npx --yes firebase-tools@15 emulators:exec --only firestore --project demo-family-roots \"node --test tests/rules.test.mjs\""
   },
   "dependencies": {
     "firebase": "^13.2.0"
