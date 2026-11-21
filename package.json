@@ -10,7 +10,7 @@
     "test:rules": "npx --yes firebase-tools@15 emulators:exec --only firestore --project demo-family-roots \"node --test tests/rules.test.mjs\""
   },
   "dependencies": {
-    "firebase": "^13.2.0"
+    "firebase": "^13.4.0"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",
